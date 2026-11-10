@@ -1,0 +1,25 @@
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+service-account*.json
+# Generated dependencies and builds
+node_modules/
+.next/
+dist/
+build/
+coverage/
+*.log
+.DS_Store
+# Uploaded media and processing outputs
+*.mp4
+*.mov
+*.avi
+*.mkv
+uploads/
+outputs/
