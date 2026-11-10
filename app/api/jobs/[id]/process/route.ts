@@ -94,6 +94,21 @@ export async function POST(
     }
 
     const body = await request.json().catch(() => ({}));
+    // Optional manual repair for a known stationary sensor blemish.
+    // Coordinates refer to ORIGINAL video pixels, not the scaled preview.
+    const manual = body?.manualSpot;
+    const manualEnabled = manual?.enabled === true;
+    const videoWidth = Number(body?.videoWidth);
+    const videoHeight = Number(body?.videoHeight);
+    const x = Number(manual?.x);
+    const y = Number(manual?.y);
+    const radius = Number(manual?.radius);
+    if (manualEnabled && (!Number.isInteger(videoWidth) || !Number.isInteger(videoHeight) ||
+      videoWidth < 16 || videoHeight < 16 || videoWidth > 8192 || videoHeight > 8192 ||
+      !Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0 ||
+      x >= videoWidth || y >= videoHeight || !Number.isInteger(radius) || radius < 2 || radius > 80)) {
+      return NextResponse.json({ error: "Invalid manual spot coordinates or video dimensions" }, { status: 400 });
+    }
     const rawDuration = Number(body?.duration);
     const duration = Number.isFinite(rawDuration) && rawDuration > 0 ? rawDuration : 60;
 
@@ -122,21 +137,36 @@ export async function POST(
 
     await updateJob(id, { progress: 15, statusMessage: "Scanning frames across the clip for fixed lens spots (ignoring motion)..." });
 
-    const maskFilter = [
-      `[0:v]split[ref][work]`,
-      `[work]fps=${sampleFps},scale=640:-2,format=gray,split[a][b]`,
-      `[b]gblur=sigma=12[bg]`,
-      `[a][bg]blend=all_expr='if(lt(A,B*${darkRatio})*gt(B-A,6),255,0)',tmix=frames=${tmixFrames},lut=y='if(gte(val,${stableLevel}),255,0)',erosion,dilation,gblur=sigma=${growSigma},lut=y='if(gt(val,16),255,0)'[small]`,
-      `[small][ref]scale2ref=flags=neighbor[mask][refout]`,
-      `[refout]nullsink`,
-    ].join(";");
-
-    const maskResult = await callFfmpeg(
-      { in_1: inputUrl },
-      { out_1: "lens_spot_mask.png" },
-      `-i {{in_1}} -filter_complex "${maskFilter}" -map "[mask]" -pix_fmt gray -update 1 {{out_1}}`,
-      600
-    );
+    let maskResult: Record<string, string>;
+    if (manualEnabled) {
+      // Construct the mask at full source resolution. A circle-like ellipse
+      // covers the dark core AND its faint gray halo; no downsampling/erosion.
+      const safeRadius = Math.min(radius, x, y, videoWidth - 1 - x, videoHeight - 1 - y);
+      const r = Math.max(2, safeRadius);
+      const expr = `if(lte((X-${x})*(X-${x})+(Y-${y})*(Y-${y}),${r*r}),255,0)`;
+      await updateJob(id, { progress: 20, statusMessage: "Creating full-resolution mask for the selected gray spot..." });
+      maskResult = await callFfmpeg(
+        {},
+        { out_1: "lens_spot_mask.png" },
+        `-f lavfi -i "color=c=black:s=${videoWidth}x${videoHeight}:r=1" -vf "format=gray,geq=lum='${expr}'" -frames:v 1 -update 1 {{out_1}}`,
+        120
+      );
+    } else {
+      const maskFilter = [
+        `[0:v]split[ref][work]`,
+        `[work]fps=${sampleFps},scale=1280:-2,format=gray,split[a][b]`,
+        `[b]gblur=sigma=12[bg]`,
+        `[a][bg]blend=all_expr='if(lt(A,B*${darkRatio})*gt(B-A,6),255,0)',tmix=frames=${tmixFrames},lut=y='if(gte(val,${stableLevel}),255,0)',dilation,dilation,gblur=sigma=${growSigma},lut=y='if(gt(val,16),255,0)'[small]`,
+        `[small][ref]scale2ref=flags=neighbor[mask][refout]`,
+        `[refout]nullsink`,
+      ].join(";");
+      maskResult = await callFfmpeg(
+        { in_1: inputUrl },
+        { out_1: "lens_spot_mask.png" },
+        `-i {{in_1}} -filter_complex "${maskFilter}" -map "[mask]" -pix_fmt gray -update 1 {{out_1}}`,
+        600
+      );
+    }
     const maskUrl = maskResult?.out_1;
     if (!maskUrl) throw new Error("Spot detection produced no mask");
 
