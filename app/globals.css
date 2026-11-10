@@ -1,0 +1,151 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* HCC Brand: Midnight Blue #002C72, Lightning Yellow #FEBE10, Cold Turkey #D2C4C3 */
+    --background: 0 0% 98%;
+    --foreground: 217 100% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 217 100% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 217 100% 15%;
+
+    --primary: 217 100% 22%;
+    --primary-foreground: 44 99% 53%;
+
+    --secondary: 14 13% 80%;
+    --secondary-foreground: 217 100% 15%;
+
+    --muted: 220 14% 93%;
+    --muted-foreground: 217 30% 45%;
+
+    --accent: 44 99% 53%;
+    --accent-foreground: 217 100% 15%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 10%;
+
+    --border: 220 13% 87%;
+    --input: 220 13% 87%;
+    --ring: 44 99% 53%;
+
+    --radius: 0.625rem;
+    --radius-sm: calc(0.625rem - 4px);
+    --radius-lg: calc(0.625rem + 4px);
+    --radius-full: 9999px;
+
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    --spacing-2xl: 48px;
+    --spacing-3xl: 64px;
+
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.03), 0 1px 3px 0 rgb(0 0 0 / 0.06);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.07), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+
+    --duration-fast: 150ms;
+    --duration-normal: 250ms;
+    --duration-slow: 350ms;
+
+    --chart-1: 217 100% 22%;
+    --chart-2: 44 99% 53%;
+    --chart-3: 14 13% 80%;
+    --chart-4: 217 50% 40%;
+    --chart-5: 44 80% 70%;
+  }
+
+  .dark {
+    --background: 220 25% 8%;
+    --foreground: 0 0% 96%;
+
+    --card: 220 20% 12%;
+    --card-foreground: 0 0% 96%;
+
+    --popover: 220 20% 12%;
+    --popover-foreground: 0 0% 96%;
+
+    --primary: 44 99% 53%;
+    --primary-foreground: 217 100% 15%;
+
+    --secondary: 220 15% 20%;
+    --secondary-foreground: 0 0% 90%;
+
+    --muted: 220 15% 18%;
+    --muted-foreground: 220 10% 59%;
+
+    --accent: 217 80% 35%;
+    --accent-foreground: 44 99% 53%;
+
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 220 15% 20%;
+    --input: 220 15% 20%;
+    --ring: 44 99% 53%;
+
+    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.15), 0 1px 2px -1px rgb(0 0 0 / 0.15);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.2), 0 2px 4px -2px rgb(0 0 0 / 0.15);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.25), 0 4px 6px -4px rgb(0 0 0 / 0.15);
+
+    --chart-1: 44 99% 53%;
+    --chart-2: 217 80% 50%;
+    --chart-3: 14 13% 70%;
+    --chart-4: 44 80% 70%;
+    --chart-5: 217 60% 60%;
+  }
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  ::selection {
+    background-color: hsl(var(--accent) / 0.3);
+    color: hsl(var(--foreground));
+  }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background-color: transparent; }
+  ::-webkit-scrollbar-thumb { background-color: hsl(var(--border)); border-radius: 9999px; }
+  ::-webkit-scrollbar-thumb:hover { background-color: hsl(var(--muted-foreground) / 0.5); }
+}
+
+@layer utilities {
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+  .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+
+  .hero-gradient {
+    background:
+      radial-gradient(ellipse 60% 50% at 50% -10%, hsl(217 100% 22% / 0.12), transparent),
+      radial-gradient(ellipse 40% 40% at 80% 0%, hsl(44 99% 53% / 0.08), transparent),
+      radial-gradient(ellipse 40% 30% at 20% 10%, hsl(14 13% 80% / 0.06), transparent);
+  }
+
+  .dark .hero-gradient {
+    background:
+      radial-gradient(ellipse 60% 50% at 50% -10%, hsl(44 99% 53% / 0.15), transparent),
+      radial-gradient(ellipse 40% 40% at 80% 0%, hsl(217 80% 35% / 0.1), transparent),
+      radial-gradient(ellipse 40% 30% at 20% 10%, hsl(14 13% 60% / 0.08), transparent);
+  }
+}
