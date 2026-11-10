@@ -28,11 +28,11 @@ interface JobStatus {
   errorMessage: string
 }
 
-function getVideoDuration(url: string): Promise<number | null> {
+function getVideoDuration(url: string): Promise<{ duration: number | null; width: number | null; height: number | null }> {
   return new Promise((resolve) => {
     const v = document.createElement('video')
     v.preload = 'metadata'
-    const done = (d: number | null) => { v.removeAttribute('src'); v.load(); resolve(d) }
+    const done = (d: number | null) => { const width = v.videoWidth || null; const height = v.videoHeight || null; v.removeAttribute('src'); v.load(); resolve({ duration: d, width, height }) }
     v.onloadedmetadata = () => done(Number.isFinite(v.duration) && v.duration > 0 ? v.duration : null)
     v.onerror = () => done(null)
     setTimeout(() => done(null), 15000)
@@ -49,6 +49,11 @@ export function RestorationApp() {
   const [stability, setStability] = useState(70)
   const [inpaintRadius, setInpaintRadius] = useState(5)
   const [denoiseStrength, setDenoiseStrength] = useState(10)
+  // Targeted 4K Sony A7 III sensor-spot test. Off for other footage.
+  const [manualSpotEnabled, setManualSpotEnabled] = useState(false)
+  const [spotX, setSpotX] = useState(1770)
+  const [spotY, setSpotY] = useState(700)
+  const [spotRadius, setSpotRadius] = useState(22)
 
   // Job state
   const [jobId, setJobId] = useState<string | null>(null)
@@ -96,7 +101,7 @@ export function RestorationApp() {
     } catch (err: any) {
       console.error('Failed to create job:', err)
     }
-  }, [sensitivity, stability, inpaintRadius, denoiseStrength])
+  }, [sensitivity, stability, inpaintRadius, denoiseStrength, manualSpotEnabled, spotX, spotY, spotRadius])
 
   // Start processing
   const startProcessing = useCallback(async () => {
@@ -128,13 +133,21 @@ export function RestorationApp() {
       setJobId(activeJobId)
 
       // Clip length lets the server sample frames evenly across the whole video
-      const duration = originalUrl ? await getVideoDuration(originalUrl) : null
+      const metadata = originalUrl ? await getVideoDuration(originalUrl) : null
+      if (manualSpotEnabled && (!metadata?.width || !metadata?.height)) {
+        throw new Error('Could not read video dimensions for targeted repair')
+      }
 
       // Fire off processing (non-blocking from the UI side)
       fetch(`/api/jobs/${activeJobId}/process`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ duration }),
+        body: JSON.stringify({
+          duration: metadata?.duration,
+          videoWidth: metadata?.width,
+          videoHeight: metadata?.height,
+          manualSpot: { enabled: manualSpotEnabled, x: spotX, y: spotY, radius: spotRadius },
+        }),
       }).catch(() => {})
 
       // Start polling
@@ -211,6 +224,10 @@ export function RestorationApp() {
     setStability(70)
     setInpaintRadius(5)
     setDenoiseStrength(10)
+    setManualSpotEnabled(false)
+    setSpotX(1770)
+    setSpotY(700)
+    setSpotRadius(22)
   }, [])
 
   const isCompleted = jobStatus?.status === 'COMPLETED'
@@ -267,6 +284,32 @@ export function RestorationApp() {
                   onDenoiseStrengthChange={setDenoiseStrength}
                   disabled={isProcessing}
                 />
+
+                {/* Optional targeted full-resolution repair */}
+                <div className="border-t border-border pt-4 space-y-3">
+                  <label className="flex items-start gap-2 text-sm cursor-pointer">
+                    <input type="checkbox" checked={manualSpotEnabled} disabled={isProcessing}
+                      onChange={(e) => setManualSpotEnabled(e.target.checked)} className="mt-1" />
+                    <span><strong>Target known gray spot (4K test)</strong><br />
+                      <span className="text-xs text-muted-foreground">Repair a fixed pixel location instead of relying on automatic detection.</span>
+                    </span>
+                  </label>
+                  {manualSpotEnabled && (
+                    <div className="grid grid-cols-3 gap-2">
+                      {([
+                        ['X', spotX, setSpotX],
+                        ['Y', spotY, setSpotY],
+                        ['Radius', spotRadius, setSpotRadius],
+                      ] as const).map(([label, value, setter]) => (
+                        <label key={label} className="text-xs">{label}
+                          <input type="number" value={value} disabled={isProcessing}
+                            onChange={(e) => setter(Number(e.target.value))}
+                            className="w-full mt-1 rounded border border-border bg-background p-2" />
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 {/* Action Buttons */}
                 <div className="space-y-3">
